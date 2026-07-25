@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>iCalendar 產生器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* CSS Variables for Light/Dark Mode (Obsidian Style) */
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f3f4f6;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --border-color: #d1d5db;
+            --accent-color: #7e22ce; /* Purple-700 */
+            --accent-hover: #6b21a8; /* Purple-800 */
+            --accent-active: #581c87; /* Purple-900 */
+            --btn-text: #ffffff;
+            --input-bg: #ffffff;
+            --tab-inactive-bg: transparent;
+            --tab-active-bg: #f3e8ff; /* Purple-100 */
+            --tab-active-text: #7e22ce;
+        }
+
+        .dark-mode {
+            --bg-primary: #1e1e1e; /* Obsidian dark bg */
+            --bg-secondary: #252525;
+            --text-primary: #e5e5e5;
+            --text-secondary: #9ca3af;
+            --border-color: #404040;
+            --accent-color: #9333ea; /* Purple-600 */
+            --accent-hover: #7e22ce; /* Purple-700 */
+            --accent-active: #6b21a8; /* Purple-800 */
+            --btn-text: #ffffff;
+            --input-bg: #2d2d2d;
+            --tab-inactive-bg: transparent;
+            --tab-active-bg: #3b0764; /* Purple-900 */
+            --tab-active-text: #d8b4fe; /* Purple-300 */
+        }
+
+        body {
+            font-family: Songti TC;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s, color 0.3s;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Mode Toggle */
+        .theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .theme-toggle:hover {
+            background-color: var(--bg-secondary);
+        }
+
+        /* Typography */
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            padding-top: 10px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            color: var(--text-secondary);
+            font-weight: 500;
+            transition: all 0.2s;
+            margin-right: 10px;
+            border-radius: 6px 6px 0 0;
+        }
+        .tab:hover:not(.active) {
+            background-color: var(--bg-secondary);
+        }
+        .tab.active {
+            color: var(--tab-active-text);
+            border-bottom-color: var(--accent-color);
+            background-color: var(--tab-active-bg);
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        .form-hint {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            white-space: pre-line;
+            line-height: 1.4;
+        }
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 1px var(--accent-color);
+        }
+        .form-textarea {
+            resize: vertical;
+            min-height: 120px;
+            font-family: Songti TC;
+        }
+
+        /* Grid */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+        @media (min-width: 600px) {
+            .grid-2 {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* Button */
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: var(--accent-color);
+            color: var(--btn-text);
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.1s ease-in-out;
+            margin-top: 20px;
+        }
+        .btn:hover {
+            background-color: var(--accent-hover);
+        }
+        .btn:active {
+            background-color: var(--accent-active);
+            transform: scale(0.98);
+        }
+
+        /* Results & Messages */
+        .results-container {
+            margin-top: 16px;
+            font-size: 0.875rem;
+            border-radius: 6px;
+            background-color: var(--bg-secondary);
+            padding: 12px;
+            display: none;
+        }
+        .results-container.show {
+            display: block;
+        }
+        .text-success { color: #10b981; } /* Keep simple green for success */
+        .text-error { color: #ef4444; }   /* Keep simple red for error */
+        
+        #message-toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--text-primary);
+            color: var(--bg-primary);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 1000;
+            text-align: center;
+        }
+        #message-toast.show {
+            opacity: 1;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <button id="theme-toggle" class="theme-toggle">切換黑夜</button>
+        
+        <h1>iCalendar 產生器</h1>
+
+        <div class="grid-2 form-group">
+            <div>
+                <label for="event-year" class="form-label">年份</label>
+                <input type="number" id="event-year" class="form-input" required>
+            </div>
+            <div>
+                <label for="timezone" class="form-label">時區設定</label>
+                <select id="timezone" class="form-select">
+                    <option value="Asia/Taipei">Asia/Taipei (台北, GMT+8)</option>
+                    <option value="Asia/Tokyo">Asia/Tokyo (東京, GMT+9)</option>
+                    <option value="Europe/London">Europe/London (倫敦, GMT+0/GMT+1)</option>
+                    <option value="America/New_York">America/New_York (紐約, EST/EDT)</option>
+                    <option value="UTC">UTC (世界協調時間)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <div id="tab-detailed" class="tab active">詳細模式</div>
+            <div id="tab-quick" class="tab">快速排班模式</div>
+        </div>
+
+        <!-- 詳細模式 -->
+        <div id="panel-detailed">
+            <div class="form-group">
+                <label for="event-month-detailed" class="form-label">月份</label>
+                <input type="number" id="event-month-detailed" min="1" max="12" class="form-input" placeholder="例如: 8">
+            </div>
+            <div class="form-group">
+                <label for="schedule-text-detailed" class="form-label">行程文字 (一行一個事件)</label>
+                <div class="form-hint">支援格式：
+單一事件: [日子] [標題] [時間] @地點 [描述]
+重複事件: [開始日] [標題] [時間] @地點 [描述] r(Mon,Wed) until YYYY-MM-DD</div>
+                <textarea id="schedule-text-detailed" class="form-textarea"></textarea>
+            </div>
+            <button id="detailed-generate-btn" class="btn">產生 .ics 檔案</button>
+            <div id="detailed-results" class="results-container"></div>
+        </div>
+
+        <!-- 快速排班模式 -->
+        <div id="panel-quick" class="hidden">
+            <div class="form-group">
+                <label for="title-quick" class="form-label">行程標題</label>
+                <input type="text" id="title-quick" class="form-input" placeholder="例如：餐廳工作">
+            </div>
+            <div class="grid-2 form-group">
+                <div>
+                    <label for="month-quick" class="form-label">月份 (可選)</label>
+                    <input type="number" id="month-quick" class="form-input" min="1" max="12" placeholder="例如: 9">
+                </div>
+                <div>
+                    <label for="time-quick" class="form-label">時間 (可選)</label>
+                    <input type="text" id="time-quick" class="form-input" placeholder="例如: 18:15-22:15">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="dates-quick" class="form-label">日期列表</label>
+                <div class="form-hint">支援多種格式:
+1. 月 日 [時間]: Aug 4 (Mon)[18:15-22:15]
+2. 日 月 [時間]: 1 Sep (Mon) [18:15-22:15]
+3. 日/月列表: 3/9, 10/9, 17/9, 24/9
+4. 重複格式: (需填上方時間) 1 Sep r(Mon,Fri) until 09-30
+5. 純日子列表（一行一個日期，需填上方月份）:
+3
+10
+17</div>
+                <textarea id="dates-quick" class="form-textarea"></textarea>
+            </div>
+            <div class="grid-2 form-group">
+                <div>
+                    <label for="location-quick" class="form-label">地點 (可選)</label>
+                    <input type="text" id="location-quick" class="form-input" placeholder="例如：餐廳地址">
+                </div>
+                <div>
+                    <label for="description-quick" class="form-label">描述 (可選)</label>
+                    <input type="text" id="description-quick" class="form-input" placeholder="例如：晚班">
+                </div>
+            </div>
+            <button id="quick-generate-btn" class="btn">產生排班 .ics 檔案</button>
+            <div id="quick-results" class="results-container"></div>
+        </div>
+    </div>
+
+    <div id="message-toast"></div>
+
+    <script>
+        // --- Theme Toggle ---
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const body = document.body;
+        
+        // Check system preference or default to light
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            body.classList.add('dark-mode');
+            themeToggleBtn.textContent = '切換白天';
+        }
+
+        themeToggleBtn.addEventListener('click', () => {
+            body.classList.toggle('dark-mode');
+            if (body.classList.contains('dark-mode')) {
+                themeToggleBtn.textContent = '切換白天';
+            } else {
+                themeToggleBtn.textContent = '切換黑夜';
+            }
+        });
+
+        // --- DOM Elements ---
+        const tabDetailed = document.getElementById('tab-detailed');
+        const tabQuick = document.getElementById('tab-quick');
+        const panelDetailed = document.getElementById('panel-detailed');
+        const panelQuick = document.getElementById('panel-quick');
+
+        const yearInput = document.getElementById('event-year');
+        const timezoneSelect = document.getElementById('timezone');
+        const messageToast = document.getElementById('message-toast');
+
+        // Detailed Mode
+        const detailedGenerateBtn = document.getElementById('detailed-generate-btn');
+        const monthInputDetailed = document.getElementById('event-month-detailed');
+        const scheduleTextInputDetailed = document.getElementById('schedule-text-detailed');
+        const detailedResults = document.getElementById('detailed-results');
+
+        // Quick Mode
+        const quickGenerateBtn = document.getElementById('quick-generate-btn');
+        const titleQuickInput = document.getElementById('title-quick');
+        const monthQuickInput = document.getElementById('month-quick');
+        const timeQuickInput = document.getElementById('time-quick');
+        const datesQuickTextarea = document.getElementById('dates-quick');
+        const locationQuickInput = document.getElementById('location-quick');
+        const descriptionQuickInput = document.getElementById('description-quick');
+        const quickResults = document.getElementById('quick-results');
+
+        // --- Init ---
+        yearInput.value = new Date().getFullYear();
+
+        // --- Tabs ---
+        tabDetailed.addEventListener('click', () => {
+            tabDetailed.classList.add('active');
+            tabQuick.classList.remove('active');
+            panelDetailed.classList.remove('hidden');
+            panelQuick.classList.add('hidden');
+        });
+
+        tabQuick.addEventListener('click', () => {
+            tabQuick.classList.add('active');
+            tabDetailed.classList.remove('active');
+            panelQuick.classList.remove('hidden');
+            panelDetailed.classList.add('hidden');
+        });
+
+        // --- Event Listeners ---
+        detailedGenerateBtn.addEventListener('click', handleDetailedGenerate);
+        quickGenerateBtn.addEventListener('click', handleQuickGenerate);
+
+        // --- Main Logic ---
+        function handleDetailedGenerate() {
+            const year = yearInput.value;
+            const month = monthInputDetailed.value;
+            const text = scheduleTextInputDetailed.value;
+            const timezone = timezoneSelect.value;
+            
+            if (!year || !month || !text.trim()) { 
+                showToast("請填寫年份、月份和行程文字"); 
+                return; 
+            }
+            
+            const { events, errors } = parseDetailedSchedule(text, year, month);
+            displayResults(events, errors, detailedResults);
+            
+            if (events.length > 0) {
+                const icsContent = generateICS(events, timezone);
+                downloadICS(icsContent, `schedule_${year}-${month}.ics`);
+            }
+        }
+
+        function handleQuickGenerate() {
+            const year = yearInput.value;
+            const title = titleQuickInput.value.trim();
+            const globalMonth = monthQuickInput.value;
+            const globalTime = timeQuickInput.value.trim();
+            const datesText = datesQuickTextarea.value;
+            const location = locationQuickInput.value.trim();
+            const description = descriptionQuickInput.value.trim();
+            const timezone = timezoneSelect.value;
+
+            if (!year || !title || !datesText.trim()) { 
+                showToast("請填寫年份、行程標題和日期列表"); 
+                return; 
+            }
+
+            const { events, errors } = parseQuickSchedule(datesText, year, title, location, description, globalMonth, globalTime);
+            displayResults(events, errors, quickResults);
+
+            if (events.length > 0) {
+                const icsContent = generateICS(events, timezone);
+                downloadICS(icsContent, `${title.replace(/ /g, '_')}.ics`);
+            }
+        }
+
+        // --- UI Helpers ---
+        function displayResults(events, errors, container) {
+            container.innerHTML = '';
+            container.classList.remove('show');
+            
+            if (events.length === 0 && errors.length === 0) return;
+            
+            container.classList.add('show');
+
+            if (events.length > 0) {
+                const p = document.createElement('p');
+                p.className = 'text-success';
+                p.style.fontWeight = 'bold';
+                p.textContent = `✓ 成功解析 ${events.length} 個事件`;
+                container.appendChild(p);
+            }
+
+            if (errors.length > 0) {
+                const title = document.createElement('p');
+                title.className = 'text-error';
+                title.style.fontWeight = 'bold';
+                title.style.marginTop = events.length > 0 ? '8px' : '0';
+                title.textContent = `⚠ 有 ${errors.length} 個項目無法解析：`;
+                container.appendChild(title);
+
+                const ul = document.createElement('ul');
+                ul.style.marginTop = '4px';
+                ul.style.paddingLeft = '20px';
+                ul.className = 'text-error';
+                errors.forEach(err => {
+                    const li = document.createElement('li');
+                    li.textContent = err;
+                    ul.appendChild(li);
+                });
+                container.appendChild(ul);
+            }
+            
+            if (events.length === 0 && errors.length > 0) {
+                showToast("無法解析任何事件");
+            }
+        }
+
+        function showToast(message) {
+            messageToast.textContent = message;
+            messageToast.classList.add('show');
+            setTimeout(() => { 
+                messageToast.classList.remove('show'); 
+            }, 3000);
+        }
+
+        // --- Parsers ---
+        function parseTime(timeStr) {
+            if (!timeStr) return null;
+            const lowerTimeStr = timeStr.toLowerCase().trim();
+            const isPm = lowerTimeStr.includes('pm');
+            const isAm = lowerTimeStr.includes('am');
+            const timeOnly = lowerTimeStr.replace('am', '').replace('pm', '').replace('.', '');
+            let hour, minute;
+            if (timeOnly.includes(':')) {
+                const parts = timeOnly.split(':');
+                hour = parseInt(parts[0], 10);
+                minute = parseInt(parts[1], 10) || 0;
+            } else if (timeOnly.length >= 3) {
+                hour = parseInt(timeOnly.slice(0, -2), 10);
+                minute = parseInt(timeOnly.slice(-2), 10) || 0;
+            } else {
+                hour = parseInt(timeOnly, 10);
+                minute = 0;
+            }
+            if (isNaN(hour) || isNaN(minute)) return null;
+            if (isPm && hour < 12) hour += 12;
+            if (isAm && hour === 12) hour = 0;
+            return { hour, minute };
+        }
+
+        function parseDetailedSchedule(text, year, month) {
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+            const events = [], errors = [];
+            lines.forEach((line, index) => {
+                 try {
+                    const dayRegex = /^(\d+)\s+(.*)$/;
+                    const dayMatch = line.match(dayRegex);
+                    if (!dayMatch) { errors.push(`第 ${index + 1} 行找不到日子`); return; }
+                    const day = parseInt(dayMatch[1], 10);
+                    let restOfLine = dayMatch[2].trim();
+                    const timeRegex = /(\S+-\S+)/g;
+                    const timeMatches = [...restOfLine.matchAll(timeRegex)];
+                    if (timeMatches.length === 0) { errors.push(`第 ${index + 1} 行找不到時間區段`); return; }
+                    const lastTimeMatch = timeMatches[timeMatches.length - 1];
+                    const timeSlot = lastTimeMatch[0];
+                    const timeIndex = lastTimeMatch.index;
+                    const title = restOfLine.substring(0, timeIndex).trim();
+                    const afterTimePart = restOfLine.substring(timeIndex + timeSlot.length).trim();
+                    let location = '', description = '';
+                    
+                    // Note: This simple parsing doesn't handle 'r(...) until' correctly for detailed mode
+                    // as it was originally implemented for single events. Keeping it as requested.
+                    const locationMatch = afterTimePart.match(/^@(\S+)\s*(.*)$/);
+                    if (locationMatch) {
+                        location = locationMatch[1];
+                        description = locationMatch[2].trim();
+                    } else {
+                        description = afterTimePart.trim();
+                    }
+                    const [startTimeStr, endTimeStr] = timeSlot.split('-');
+                    const startTime = parseTime(startTimeStr);
+                    const endTime = parseTime(endTimeStr);
+                    if(!startTime || !endTime) { errors.push(`第 ${index+1} 行時間錯誤`); return; }
+                    const startDate = new Date(year, month - 1, day, startTime.hour, startTime.minute, 0);
+                    const endDate = new Date(year, month - 1, day, endTime.hour, endTime.minute, 0);
+                    if (endDate <= startDate) endDate.setDate(endDate.getDate() + 1);
+                    events.push({ title, startDate, endDate, location, description });
+                } catch (e) { errors.push(`第 ${index + 1} 行解析錯誤`); }
+            });
+            return { events, errors };
+        }
+        
+        function parseQuickSchedule(text, year, title, location, description, globalMonth, globalTime) {
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+            const events = [], errors = [];
+            const monthMap = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+            const dayMap = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+            
+            const isDayMonthList = text.includes('/') && text.includes(',');
+            const isDayOnlyList = lines.every(line => /^\d+$/.test(line.trim()));
+            const isRecurringList = lines.some(line => line.toLowerCase().includes(' r(') && line.toLowerCase().includes(' until '));
+
+            if (isDayMonthList) {
+                if (!globalTime) { errors.push("日/月格式需統一時間"); return { events, errors }; }
+                const [startTimeStr, endTimeStr] = globalTime.split('-');
+                const startTime = parseTime(startTimeStr), endTime = parseTime(endTimeStr);
+                if (!startTime || !endTime) { errors.push(`統一時間格式錯誤`); return { events, errors }; }
+                const entries = text.replace(/\s/g, '').split(',');
+                entries.forEach((entry, index) => {
+                    if (!entry) return;
+                    const parts = entry.split('/');
+                    if (parts.length !== 2) { errors.push(`項目 ${entry} 格式錯誤`); return; }
+                    const day = parseInt(parts[0], 10), month = parseInt(parts[1], 10) - 1;
+                    if (isNaN(day) || isNaN(month)) { errors.push(`項目 ${entry} 日期無法辨識`); return; }
+                    const startDate = new Date(year, month, day, startTime.hour, startTime.minute, 0);
+                    const endDate = new Date(year, month, day, endTime.hour, endTime.minute, 0);
+                    if (endDate <= startDate) endDate.setDate(endDate.getDate() + 1);
+                    events.push({ title, startDate, endDate, location, description });
+                });
+            } else if (isDayOnlyList) {
+                if (!globalMonth || !globalTime) { errors.push("純日子格式需統一月份和時間"); return { events, errors }; }
+                const [startTimeStr, endTimeStr] = globalTime.split('-');
+                const startTime = parseTime(startTimeStr), endTime = parseTime(endTimeStr);
+                const month = parseInt(globalMonth, 10) - 1;
+                if (!startTime || !endTime || isNaN(month)) { errors.push(`時間或月份錯誤`); return { events, errors }; }
+                lines.forEach((line, index) => {
+                    const day = parseInt(line.trim(), 10);
+                    if (isNaN(day)) { errors.push(`第 ${index + 1} 行日子錯誤`); return; }
+                    const startDate = new Date(year, month, day, startTime.hour, startTime.minute, 0);
+                    const endDate = new Date(year, month, day, endTime.hour, endTime.minute, 0);
+                    if (endDate <= startDate) endDate.setDate(endDate.getDate() + 1);
+                    events.push({ title, startDate, endDate, location, description });
+                });
+            } else if (isRecurringList) {
+                if (!globalTime) { errors.push("重複格式需統一時間"); return { events, errors }; }
+                const [startTimeStr, endTimeStr] = globalTime.split('-');
+                const startTime = parseTime(startTimeStr), endTime = parseTime(endTimeStr);
+                if (!startTime || !endTime) { errors.push(`統一時間格式錯誤`); return { events, errors }; }
+                lines.forEach((line, index) => {
+                    const ruleRegex = /^(\d+)\s+([a-z]{3})\s+r\((.*?)\)\s+until\s+((?:\d{4}-)?\d{2}-\d{2})$/i;
+                    const ruleMatch = line.trim().match(ruleRegex);
+                    if (ruleMatch) {
+                        try {
+                            const startDay = parseInt(ruleMatch[1], 10);
+                            const startMonthStr = ruleMatch[2].toLowerCase();
+                            const startMonth = monthMap[startMonthStr];
+                            if (startMonth === undefined) { errors.push(`第 ${index + 1} 行月份錯誤`); return; }
+                            const ruleDays = ruleMatch[3].toLowerCase().split(',').map(d => d.trim());
+                            const untilDateStr = ruleMatch[4];
+                            let untilYear = year, untilMonth, untilDay;
+                            if (untilDateStr.includes('-') && untilDateStr.length > 5) { [untilYear, untilMonth, untilDay] = untilDateStr.split('-').map(Number); } 
+                            else { [untilMonth, untilDay] = untilDateStr.split('-').map(Number); }
+                            const loopStartDate = new Date(year, startMonth, startDay);
+                            const loopUntilDate = new Date(untilYear, untilMonth - 1, untilDay, 23, 59, 59);
+                            let currentDate = new Date(loopStartDate.getTime());
+                            while (currentDate <= loopUntilDate) {
+                                const currentDayOfWeek = currentDate.getDay();
+                                let shouldCreate = false;
+                                if (ruleDays.includes('daily')) { shouldCreate = true; } 
+                                else { for (const ruleDay of ruleDays) { if (dayMap[ruleDay] === currentDayOfWeek) { shouldCreate = true; break; } } }
+                                if (shouldCreate) {
+                                    const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), startTime.hour, startTime.minute, 0);
+                                    const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), endTime.hour, endTime.minute, 0);
+                                    if (endDate <= startDate) endDate.setDate(endDate.getDate() + 1);
+                                    events.push({ title, startDate, endDate, location, description });
+                                }
+                                currentDate.setDate(currentDate.getDate() + 1);
+                            }
+                        } catch (e) { errors.push(`第 ${index + 1} 行重複規則錯誤`); }
+                    } else { errors.push(`第 ${index + 1} 行不符合重複格式`); }
+                });
+            } else {
+                const regexDayFirst = /^(\d+)\s+([a-z]{3})\s*(?:\(.*\))?\s*\[(.*?)\]/i;
+                const regexMonthFirst = /^([a-z]{3})\s+(\d+)\s*(?:\(.*\))?\s*\[(.*?)\]/i;
+                lines.forEach((line, index) => {
+                    let match = line.trim().match(regexDayFirst);
+                    let day, monthStr, timeSlot;
+                    if (match) { day = parseInt(match[1], 10); monthStr = match[2].toLowerCase(); timeSlot = match[3]; } 
+                    else { match = line.trim().match(regexMonthFirst);
+                        if (match) { monthStr = match[1].toLowerCase(); day = parseInt(match[2], 10); timeSlot = match[3]; } }
+                    if (match) {
+                        try {
+                            const month = monthMap[monthStr];
+                            if (month === undefined) { errors.push(`第 ${index + 1} 行月份錯誤`); return; }
+                            const [startTimeStr, endTimeStr] = timeSlot.split('-');
+                            const startTime = parseTime(startTimeStr), endTime = parseTime(endTimeStr);
+                            if (!startTime || !endTime) { errors.push(`第 ${index + 1} 行時間錯誤`); return; }
+                            const startDate = new Date(year, month, day, startTime.hour, startTime.minute, 0);
+                            const endDate = new Date(year, month, day, endTime.hour, endTime.minute, 0);
+                            if (endDate <= startDate) endDate.setDate(endDate.getDate() + 1);
+                            events.push({ title, startDate, endDate, location, description });
+                        } catch (e) { errors.push(`第 ${index + 1} 行解析錯誤`); }
+                    } else { errors.push(`第 ${index + 1} 行格式無法辨識`); }
+                });
+            }
+            return { events, errors };
+        }
+
+        function generateICS(events, timezone) {
+            const pad = (num) => num.toString().padStart(2, '0');
+            const formatDT = (date) => `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}T${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+            const timezoneData = {'Asia/Taipei': 'BEGIN:VTIMEZONE\nTZID:Asia/Taipei\nBEGIN:STANDARD\nDTSTART:19700101T000000\nTZOFFSETFROM:+0800\nTZOFFSETTO:+0800\nTZNAME:CST\nEND:STANDARD\nEND:VTIMEZONE'};
+            let icsChunks = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Gemini Web App (Shortcuts)//EN'];
+            if (timezone !== 'UTC' && timezoneData[timezone]) { icsChunks.push(timezoneData[timezone]); }
+            events.forEach(event => {
+                const uid = Date.now() + Math.random() + "@shortcuts.local";
+                const dtStamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+                let dtStart, dtEnd;
+                if (timezone === 'UTC') {
+                    dtStart = `DTSTART:${formatDT(event.startDate)}Z`;
+                    dtEnd = `DTEND:${formatDT(event.endDate)}Z`;
+                } else {
+                    dtStart = `DTSTART;TZID=${timezone}:${formatDT(event.startDate)}`;
+                    dtEnd = `DTEND;TZID=${timezone}:${formatDT(event.endDate)}`;
+                }
+                icsChunks.push('BEGIN:VEVENT', `UID:${uid}`, `DTSTAMP:${dtStamp}`, dtStart, dtEnd, `SUMMARY:${event.title}`, `DESCRIPTION:${(event.description || '').replace(/\n/g, '\\n')}`, `LOCATION:${event.location || ''}`, 'END:VEVENT');
+            });
+            icsChunks.push('END:VCALENDAR');
+            return icsChunks.join('\n');
+        }
+
+        function downloadICS(content, fileName) {
+            // For iOS Shortcuts, providing a clean data URI or triggering download
+            const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', fileName);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
